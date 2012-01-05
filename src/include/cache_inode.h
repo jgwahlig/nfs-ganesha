@@ -843,7 +843,6 @@ cache_inode_status_t cache_inode_readdir( cache_entry_t * pentry,
                                           cache_inode_endofdir_t *peod_met,
                                           cache_inode_dir_entry_t **dirent_array,
                                           hash_table_t *ht,
-                                          int *unlock,
                                           cache_inode_client_t *pclient,
                                           fsal_op_context_t *pcontext,
                                           cache_inode_status_t *pstatus);

@@ -90,7 +90,6 @@ int nfs4_op_readdir(struct nfs_argop4 *op,
   unsigned long space_used;
   unsigned int estimated_num_entries;
   unsigned int num_entries;
-  int dir_pentry_unlock = FALSE;
 
   unsigned int i = 0;
   unsigned int outbuffsize = 0 ;
@@ -244,7 +243,6 @@ int nfs4_op_readdir(struct nfs_argop4 *op,
                          &eod_met,
                          dirent_array,
                          data->ht,
-                         &dir_pentry_unlock,
                          data->pclient,
                          data->pcontext, &cache_status) != CACHE_INODE_SUCCESS)
     {
@@ -422,10 +420,6 @@ int nfs4_op_readdir(struct nfs_argop4 *op,
   res_READDIR4.status = NFS4_OK;
 
 out:
-  /* release read lock on dir_pentry, if requested */
-  if (dir_pentry_unlock)
-      V_r(&dir_pentry->lock);
-
   if (dirent_array)
    {
       if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) )

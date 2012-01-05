@@ -122,7 +122,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
   fh3_buffer_item_t *fh3_array = NULL;
   entryplus3 reference_entry;
   READDIRPLUS3resok reference_reply;
-  int dir_pentry_unlock = FALSE;
 
   if(isDebug(COMPONENT_NFSPROTO) || isDebug(COMPONENT_NFS_READDIR))
     {
@@ -264,7 +263,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
                          &eod_met,
                          dirent_array,
                          ht,
-                         &dir_pentry_unlock,
                          pclient,
                          pcontext,
                          &cache_status) == CACHE_INODE_SUCCESS)
@@ -306,11 +304,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
 
           if(entry_name_array == NULL)
             {
-                /* after successful cache_inode_readdir, dir_pentry may be
-                 * read locked */
-                if (dir_pentry_unlock)
-                    V_r(&dir_pentry->lock);
-   
               if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) 
                 cache_inode_release_dirent( dirent_array, num_entries, pclient ) ;
               Mem_Free((char *)dirent_array);
@@ -323,11 +316,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
 
           if(pres->res_readdirplus3.READDIRPLUS3res_u.resok.reply.entries == NULL)
             {
-                /* after successful cache_inode_readdir, dir_pentry may be
-                 * read locked */
-                if (dir_pentry_unlock)
-                    V_r(&dir_pentry->lock);
-
               if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) 
                cache_inode_release_dirent( dirent_array, num_entries, pclient ) ;
               Mem_Free((char *)dirent_array);
@@ -342,11 +330,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
 
           if(fh3_array == NULL)
             {
-                /* after successful cache_inode_readdir, dir_pentry may be
-                 * read locked */
-                if (dir_pentry_unlock)
-                    V_r(&dir_pentry->lock);
-
               if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) 
                 cache_inode_release_dirent( dirent_array, num_entries, pclient ) ;
               Mem_Free((char *)dirent_array);
@@ -367,11 +350,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
                                                                  &cache_status_gethandle))
                      == NULL)
                     {
-                        /* after successful cache_inode_readdir, dir_pentry
-                         * may be read locked */
-                        if (dir_pentry_unlock)
-                            V_r(&dir_pentry->lock);
-
                       if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) 
                         cache_inode_release_dirent( dirent_array, num_entries, pclient ) ;
                       Mem_Free((char *)dirent_array);
@@ -401,11 +379,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
                      (&pres->res_readdirplus3.READDIRPLUS3res_u.resok.reply.entries[0].
                       name_handle.post_op_fh3_u.handle, pfsal_handle, pexport) == 0)
                     {
-                        /* after successful cache_inode_readdir, dir_pentry may
-                         * be read locked */
-                        if (dir_pentry_unlock)
-                            V_r(&dir_pentry->lock);
-
                       if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) 
                         cache_inode_release_dirent( dirent_array, num_entries, pclient ) ;
                       Mem_Free((char *)dirent_array);
@@ -458,11 +431,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
                                                            &cache_status_gethandle)) ==
                      NULL)
                     {
-                        /* after successful cache_inode_readdir, dir_pentry may
-                         * be read locked */
-                        if (dir_pentry_unlock)
-                            V_r(&dir_pentry->lock);
-
                       if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) 
                         cache_inode_release_dirent( dirent_array, num_entries, pclient ) ;
                       Mem_Free((char *)dirent_array);
@@ -477,11 +445,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
                                                                  &cache_status_gethandle))
                      == NULL)
                     {
-                        /* after successful cache_inode_readdir, dir_pentry may
-                         * be read locked */
-                        if (dir_pentry_unlock)
-                            V_r(&dir_pentry->lock);
-
                       if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) 
                         cache_inode_release_dirent( dirent_array, num_entries, pclient ) ;
                       Mem_Free((char *)dirent_array);
@@ -510,11 +473,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
                      (&pres->res_readdirplus3.READDIRPLUS3res_u.resok.reply.entries[delta].
                       name_handle.post_op_fh3_u.handle, pfsal_handle, pexport) == 0)
                     {
-                        /* after successful cache_inode_readdir, dir_pentry may
-                         * be read locked */
-                        if (dir_pentry_unlock)
-                            V_r(&dir_pentry->lock);
-
                       if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) 
                         cache_inode_release_dirent( dirent_array, num_entries, pclient ) ;
                       Mem_Free((char *)dirent_array);
@@ -597,12 +555,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
                   if(i == delta && delta == 0)
                     {
                       /* Not enough room to make even a single reply */
-
-                        /* after successful cache_inode_readdir, dir_pentry may
-                         * be read locked */
-                        if (dir_pentry_unlock)
-                            V_r(&dir_pentry->lock);
-
                       if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) 
                         cache_inode_release_dirent( dirent_array, num_entries, pclient ) ;
                       Mem_Free((char *)dirent_array);
@@ -623,11 +575,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
                   cache_inode_get_fsal_handle(dirent_array[i - delta]->pentry,
                                               &cache_status_gethandle)) == NULL)
                 {
-                    /* after successful cache_inode_readdir, dir_pentry may be
-                     * read locked */
-                    if (dir_pentry_unlock)
-                        V_r(&dir_pentry->lock);
-
                   if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) 
                     cache_inode_release_dirent( dirent_array, num_entries, pclient ) ;
                   Mem_Free((char *)dirent_array);
@@ -673,11 +620,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
                  (&pres->res_readdirplus3.READDIRPLUS3res_u.resok.reply.entries[i].
                   name_handle.post_op_fh3_u.handle, pfsal_handle, pexport) == 0)
                 {
-                    /* after successful cache_inode_readdir, dir_pentry may be
-                     * read locked */
-                    if (dir_pentry_unlock)
-                        V_r(&dir_pentry->lock);
-
                   if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) 
                     cache_inode_release_dirent( dirent_array, num_entries, pclient ) ;
                   Mem_Free((char *)dirent_array);
@@ -745,11 +687,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
       LogFullDebug(COMPONENT_NFS_READDIR,
                    "============================================================");
 
-      /* after successful cache_inode_readdir, dir_pentry may be
-       * read locked */
-      if (dir_pentry_unlock)
-          V_r(&dir_pentry->lock);
-
       /* Free the memory */
       if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) 
         cache_inode_release_dirent( dirent_array, num_entries, pclient ) ;
@@ -759,11 +696,6 @@ int nfs3_Readdirplus(nfs_arg_t * parg,
     }
 
   /* If we are here, there was an error */
-
-  /* after successful cache_inode_readdir, dir_pentry may be
-   * read locked */
-  if (dir_pentry_unlock)
-      V_r(&dir_pentry->lock);
 
   /* Free the memory */
   if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) )

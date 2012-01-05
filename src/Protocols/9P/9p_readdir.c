@@ -95,7 +95,6 @@ int _9p_readdir( _9p_request_data_t * preq9p,
   unsigned int estimated_num_entries = 0 ;
   unsigned int num_entries = 0 ;
   unsigned int delta = 0 ;
-  int unlock = FALSE ;
   u64 i = 0LL ;
 
   if ( !preq9p || !pworker_data || !plenout || !preply )
@@ -182,7 +181,6 @@ int _9p_readdir( _9p_request_data_t * preq9p,
        *   - the client makes a new call, expecting it to have empty return
        */
       num_entries = 0 ; /* Empty return */
-      unlock = FALSE ;
    }
   else if(cache_inode_readdir( pfid->pentry,
                           pfid->pexport->cache_inode_policy,
@@ -193,20 +191,14 @@ int _9p_readdir( _9p_request_data_t * preq9p,
                           &eod_met,
                           &dirent_array[delta],
                           pwkrdata->ht,
-                          &unlock,
                           &pwkrdata->cache_inode_client,
                           &pfid->fsal_op_context, 
                           &cache_status) != CACHE_INODE_SUCCESS)
     {
-      if( unlock ) V_r( &pfid->pentry->lock ) ;
-
       err = _9p_tools_errno( cache_status ) ; ;
       rc = _9p_rerror( preq9p, msgtag, &err, plenout, preply ) ;
       return rc ;
     }
-
-  /* Unlock the directory if needed */
-  if( unlock ) V_r( &pfid->pentry->lock ) ;
 
   /* Never go behind _9P_MAXDIRCOUNT */
   if( num_entries > _9P_MAXDIRCOUNT ) num_entries = _9P_MAXDIRCOUNT ;

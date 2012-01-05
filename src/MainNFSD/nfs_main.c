@@ -355,14 +355,8 @@ int main(int argc, char *argv[])
 #endif                          /* _USE_SHARED_FSAL */
 
   LogEvent(COMPONENT_MAIN,
-           ">>>>>>>>>>--------------------------------------- <<<<<<<<<<" ) ;
-
-  LogEvent(COMPONENT_MAIN,
            ">>>>>>>>>> Starting GANESHA NFS Daemon on FSAL/%s <<<<<<<<<<",
 	   FSAL_GetFSName());
-
-  LogEvent(COMPONENT_MAIN,
-           ">>>>>>>>>>--------------------------------------- <<<<<<<<<<" ) ;
 
   /* initialize default parameters */
 

@@ -1151,7 +1151,6 @@ int fn_Cache_inode_ls(int argc, /* IN : number of args in argv */
   char *str_name = ".";
   char item_path[FSAL_MAX_PATH_LEN];
   cache_entry_t *pentry_tmp = NULL;
-  int dir_pentry_unlock = FALSE;
 
   int rc = 0;
   char glob_path[FSAL_MAX_PATH_LEN];
@@ -1428,22 +1427,14 @@ int fn_Cache_inode_ls(int argc, /* IN : number of args in argv */
                              &eod_met,
                              dirent_array,
                              ht,
-                             &dir_pentry_unlock,
                              &context->client,
                              &context->context,
                              &context->cache_status) != CACHE_INODE_SUCCESS)
         {
           fprintf(output, "Error %d in cache_inode_readdir\n",
                   context->cache_status);
-          /* after successful cache_inode_readdir, pentry_tmp may be
-           * read locked */
-          if (dir_pentry_unlock)
-              V_r(&pentry_tmp->lock);
           return context->cache_status;
         }
-
-      if (dir_pentry_unlock)
-        V_r(&pentry_tmp->lock);
 
       for(i = 0; i < nbfound; i++)
         {
@@ -1467,8 +1458,6 @@ int fn_Cache_inode_ls(int argc, /* IN : number of args in argv */
                 {
                   log_fprintf(output, "Error executing cache_inode_readlink : %J%r\n",
                               ERR_CACHE_INODE, context->cache_status);
-                  /* after successful cache_inode_readdir, pentry_tmp may be
-                   * read locked */
                   return context->cache_status;
                 }
             }
@@ -1484,8 +1473,6 @@ int fn_Cache_inode_ls(int argc, /* IN : number of args in argv */
                 {
                   log_fprintf(output, "Error executing cache_inode_getattr : %J%r\n",
                               ERR_CACHE_INODE, context->cache_status);
-                  /* after successful cache_inode_readdir, pentry_tmp may be
-                   * read locked */
                   return context->cache_status;
                 }
 
@@ -1503,8 +1490,6 @@ int fn_Cache_inode_ls(int argc, /* IN : number of args in argv */
                 {
                   log_fprintf(output, "Error executing cache_inode_getattr : %J%r\n",
                               ERR_CACHE_INODE, context->cache_status);
-                  /* after successful cache_inode_readdir, pentry_tmp may be
-                   * read locked */
                   return context->cache_status;
                 }
               if(!flag_z)
@@ -1541,8 +1526,6 @@ int fn_Cache_inode_ls(int argc, /* IN : number of args in argv */
                       cache_inode_get_fsal_handle(dirent_array[i]->pentry,
                                                   &context->cache_status)) == NULL)
                     {
-                        /* after successful cache_inode_readdir, pentry_tmp may be
-                         * read locked */
                       return 1;
                     }
                   snprintmem(buff, 128, (caddr_t) pfsal_handle, sizeof(fsal_handle_t));
@@ -1565,9 +1548,6 @@ int fn_Cache_inode_ls(int argc, /* IN : number of args in argv */
                    end_cookie, begin_cookie + nbfound);
       begin_cookie = end_cookie;
     }
-
-  /* after successful cache_inode_readdir, pentry_tmp may be
-   * read locked */
 
   return 0;
 }                               /* fn_Cache_inode_ls */

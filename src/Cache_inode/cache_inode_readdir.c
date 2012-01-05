@@ -68,7 +68,6 @@
  * @param peod_met [OUT] A flag to know if end of directory was met during this call.
  * @param dirent_array [OUT] the resulting array of found directory entries.
  * @param ht [IN] hash table used for the cache, unused in this call.
- * @param unlock [OUT] the caller shall release read-lock on pentry when done
  * @param pclient [INOUT] ressource allocated by the client for the nfs management.
  * @param pcontext [IN] FSAL credentials
  * @param pstatus [OUT] returned status.
@@ -85,7 +84,6 @@ static cache_inode_status_t cache_inode_readdir_nonamecache( cache_entry_t * pen
                                                              cache_inode_endofdir_t *peod_met,
                                                              cache_inode_dir_entry_t **dirent_array,
                                                              hash_table_t *ht,
-                                                             int *unlock,
                                                              cache_inode_client_t *pclient,
                                                              fsal_op_context_t *pcontext,
                                                              cache_inode_status_t *pstatus)
@@ -112,7 +110,7 @@ static cache_inode_status_t cache_inode_readdir_nonamecache( cache_entry_t * pen
       return *pstatus;
     }
 
-  LogFullDebug(COMPONENT_CACHE_INODE,
+  LogFullDebug(COMPONENT_NFS_READDIR,
                "About to readdir in  cache_inode_readdir_nonamecache: pentry=%p "
 	       "cookie=%"PRIu64, pentry_dir, cookie ) ;
 
@@ -238,7 +236,7 @@ static cache_inode_status_t cache_inode_readdir_nonamecache( cache_entry_t * pen
   //memcpy( pend_cookie, &(end_cookie.data), sizeof( uint64_t ) ) ; 
   FSAL_SET_POFFSET_BY_COOKIE( end_cookie, pend_cookie ) ;
 
-  LogFullDebug(COMPONENT_CACHE_INODE,
+  LogFullDebug(COMPONENT_NFS_READDIR,
                "End of readdir in  cache_inode_readdir_nonamecache: pentry=%p "
 	       "cookie=%"PRIu64, pentry_dir, *pend_cookie ) ;
 
@@ -360,7 +358,7 @@ cache_entry_t *cache_inode_operate_cached_dirent(cache_entry_t * pentry_parent,
   if (vstate == VALID || vstate == STALE) {
   
       if (vstate == STALE)
-      	LogDebug(COMPONENT_CACHE_INODE,
+      	LogDebug(COMPONENT_NFS_READDIR,
 		"DIRECTORY: found STALE cache entry");
 
 	/* Entry was found */
@@ -923,7 +921,7 @@ cache_inode_status_t cache_inode_readdir_populate(
 
       for(iter = 0; iter < nbfound; iter++)
         {
-          LogFullDebug(COMPONENT_CACHE_INODE,
+          LogFullDebug(COMPONENT_NFS_READDIR,
                        "cache readdir populate found entry %s",
                        array_dirent[iter].name.name);
 
@@ -931,7 +929,7 @@ cache_inode_status_t cache_inode_readdir_populate(
           if(!FSAL_namecmp(&(array_dirent[iter].name), (fsal_name_t *) & FSAL_DOT) ||
              !FSAL_namecmp(&(array_dirent[iter].name), (fsal_name_t *) & FSAL_DOT_DOT))
             {
-              LogFullDebug(COMPONENT_CACHE_INODE,
+              LogFullDebug(COMPONENT_NFS_READDIR,
                            "cache readdir populate : do not cache . and ..");
               continue;
             }
@@ -1159,7 +1157,6 @@ static void revalidate_cookie_cache(cache_entry_t *dir_pentry,
  * @param peod_met [OUT] A flag to know if end of directory was met during this call.
  * @param dirent_array [OUT] the resulting array of found directory entries.
  * @param ht [IN] hash table used for the cache, unused in this call.
- * @param unlock [OUT] the caller shall release read-lock on pentry when done
  * @param pclient [INOUT] ressource allocated by the client for the nfs management.
  * @param pcontext [IN] FSAL credentials
  * @param pstatus [OUT] returned status.
@@ -1178,7 +1175,6 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
                                          cache_inode_endofdir_t *peod_met,
                                          cache_inode_dir_entry_t **dirent_array,
                                          hash_table_t *ht,
-                                         int *unlock,
                                          cache_inode_client_t *pclient,
                                          fsal_op_context_t *pcontext,
                                          cache_inode_status_t *pstatus)
@@ -1199,11 +1195,8 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
   *pstatus = CACHE_INODE_SUCCESS;
   dirent = NULL;
 
-  /* Set initial value of unlock */
-  *unlock = FALSE;
-
   /* end cookie initial value is the begin cookie */
-  LogFullDebug(COMPONENT_CACHE_INODE,
+  LogFullDebug(COMPONENT_NFS_READDIR,
                "--> Cache_inode_readdir: setting pend_cookie to cookie=%"
 	       PRIu64,
                cookie);
@@ -1213,7 +1206,7 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
   pclient->stat.nb_call_total++;
   (pclient->stat.func_stats.nb_call[CACHE_INODE_READDIR])++;
 
-  LogFullDebug(COMPONENT_CACHE_INODE,
+  LogFullDebug(COMPONENT_NFS_READDIR,
                "--> Cache_inode_readdir: parameters are cookie=%"PRIu64
 	       "nbwanted=%u",
                cookie, nbwanted);
@@ -1244,7 +1237,6 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
                                              peod_met,
                                              dirent_array, 
                                              ht, 
-                                             unlock,
                                              pclient,
                                              pcontext,
                                              pstatus ) ;    
@@ -1331,7 +1323,7 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
       }
 
       if ((inoff-3) > avltree_size(&dir_pentry->object.dir.dentries)) {
-          LogCrit(COMPONENT_CACHE_INODE, "Bad initial cookie %"PRIu64,
+          LogCrit(COMPONENT_NFS_V4, "Bad initial cookie %"PRIu64,
                   inoff);
 	  *pstatus = CACHE_INODE_BAD_COOKIE;
 	  V_r(&dir_pentry->lock);
@@ -1344,7 +1336,7 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
 				   &dir_pentry->object.dir.cookies);
 
       if (! dirent_node) {
-	  LogCrit(COMPONENT_CACHE_INODE,
+	  LogCrit(COMPONENT_NFS_READDIR,
 		  "%s: seek to cookie=%"PRIu64" fail",
 		  __func__,
 		  inoff);
@@ -1369,7 +1361,7 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
       dirent_node = avltree_first(&dir_pentry->object.dir.dentries);
   }
 
-  LogFullDebug(COMPONENT_CACHE_INODE,
+  LogFullDebug(COMPONENT_NFS_READDIR,
                "About to readdir in  cache_inode_readdir: pentry=%p "
 	       "cookie=%"PRIu64,
                dir_pentry,
@@ -1412,15 +1404,13 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
 
   *pstatus = cache_inode_valid(dir_pentry, CACHE_INODE_OP_GET, pclient);
 
+  V_r(&dir_pentry->lock);
+
   /* stats */
-  if(*pstatus != CACHE_INODE_SUCCESS) {
+  if(*pstatus != CACHE_INODE_SUCCESS)
       (pclient->stat.func_stats.nb_err_retryable[CACHE_INODE_READDIR])++;
-      V_r(&dir_pentry->lock);
-  }
-  else {
+  else 
       (pclient->stat.func_stats.nb_success[CACHE_INODE_READDIR])++;
-      *unlock = TRUE;
-  }
 
   return *pstatus;
 }                               /* cache_inode_readdir */
