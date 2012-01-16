@@ -46,6 +46,7 @@
 #include "HashTable.h"
 #include "fsal.h"
 #include "cache_inode.h"
+#include "cache_inode_avl.h"
 #include "cache_content.h"
 #include "stuff_alloc.h"
 #include "nfs4_acls.h"
@@ -141,57 +142,6 @@ void cache_inode_print_srvhandle(char *comment, cache_entry_t * pentry);
 #endif
 
 static void cache_inode_init_attributes(cache_entry_t *pentry, fsal_attrib_list_t *pattr);
-
-/**
- *
- * ci_avl_dir_name_cmp
- *
- * Compare dir entry avl nodes by name.
- *
- * @param lhs [IN] first key
- * @param rhs [IN] second key
- * @return -1, 0, or 1, as strcmp(3)
- *
- */
-static int ci_avl_dir_name_cmp(const struct avltree_node *lhs,
-			       const struct avltree_node *rhs)
-{
-    cache_inode_dir_entry_t *lhe = avltree_container_of(
-	lhs, cache_inode_dir_entry_t, node_n);
-    cache_inode_dir_entry_t *rhe = avltree_container_of(
-	rhs, cache_inode_dir_entry_t, node_n);
-
-    return FSAL_namecmp(&lhe->name, &rhe->name);
-}
-
-/**
- *
- * ci_avl_dir_ck_cmp
- *
- * Compare dir entry avl nodes by cookie (offset).
- *
- * @param lhs [IN] first key
- * @param rhs [IN] second key
- * @return -1, 0, or 1, as strcmp(3)
- *
- */
-static int ci_avl_dir_ck_cmp(const struct avltree_node *lhs,
-			     const struct avltree_node *rhs)
-{
-    cache_inode_dir_entry_t *lhe = avltree_container_of(
-	lhs, cache_inode_dir_entry_t, node_c);
-    cache_inode_dir_entry_t *rhe = avltree_container_of(
-	rhs, cache_inode_dir_entry_t, node_c);
-
-    if (lhe->cookie < rhe->cookie)
-	return (-1);
-
-    if (lhe->cookie == rhe->cookie)
-	return (0);
-
-    /* r > l */
-    return 1;
-}
 
 /**
  *
@@ -558,12 +508,8 @@ cache_entry_t *cache_inode_new_entry(cache_inode_fsal_data_t   * pfsdata,
       pentry->object.dir.has_been_readdir = CACHE_INODE_NO;
       pentry->object.dir.nbactive = 0;
       pentry->object.dir.referral = NULL;
-
-      /* init avl trees */
-      avltree_init(&pentry->object.dir.dentries, ci_avl_dir_name_cmp,
-		   0 /* flags */);
-      avltree_init(&pentry->object.dir.cookies, ci_avl_dir_ck_cmp,
-		   0 /* flags */);
+      /* init avl tree */
+      cache_inode_avl_init(pentry);
       break;
 
     case SYMBOLIC_LINK:
@@ -679,12 +625,8 @@ cache_entry_t *cache_inode_new_entry(cache_inode_fsal_data_t   * pfsdata,
       pentry->object.dir.has_been_readdir = CACHE_INODE_NO;
       pentry->object.dir.nbactive = 0;
       pentry->object.dir.referral = NULL;
-
-      /* init avl trees */
-      avltree_init(&pentry->object.dir.dentries, ci_avl_dir_name_cmp,
-		   0 /* flags */);
-      avltree_init(&pentry->object.dir.cookies, ci_avl_dir_ck_cmp,
-		   0 /* flags */);
+      /* init avl tree */
+      cache_inode_avl_init(pentry);
       break ;
 
     default:
@@ -1521,10 +1463,10 @@ void cache_inode_print_dir(cache_entry_t * cache_entry_root)
       return;
     }
 
-  dirent_node = avltree_first(&cache_entry_root->object.dir.dentries);
+  dirent_node = avltree_first(&cache_entry_root->object.dir.avl);
   do {
       dirent = avltree_container_of(dirent_node, cache_inode_dir_entry_t,
-				    node_n);
+				    node_hk);
       LogFullDebug(COMPONENT_CACHE_INODE,
 		   "Name = %s, DIRECTORY entry = %p, i=%d",
 		   dirent->name.name,
@@ -1645,54 +1587,22 @@ cache_inode_status_t cache_inode_reload_content(char *path, cache_entry_t * pent
  * cache_inode_invalidate_dirent: unassociate a directory entry, 
  * invalidating the containing cache entry.
  *
- * Note that the dirent object linked in each parent entry is
- * necessarily unique, though it shares its name with its linked
- * friends.  This follows from the design of the avl link record.
- * From this it follows that any dirent unlinked here should be
- * reclaimed (or recycled).
- *
  * Removes directory entry association.  Cache entry is locked.
  *
  * @param pentry [INOUT] entry to be managed
- * @param cookie [IN] key of related dirent in pentry sparse avl
  * @param pclient [IN] related pclient
  *
  * @return void
  *
  */
-void cache_inode_invalidate_related_dirent(
+ void cache_inode_invalidate_related_dirent(
     cache_entry_t * pentry,
-    uint64_t cookie,
     cache_inode_client_t * pclient)
 {
-    struct avltree_node *dirent_node;
-    cache_inode_dir_entry_t dirent_key[1], *dirent;
 
-    dirent_key->cookie = cookie;
-    dirent_node = avltree_lookup(&dirent_key->node_c,
-				 &pentry->object.dir.cookies);
-
-    if (! dirent_node) {
-	LogDebug(COMPONENT_CACHE_INODE,
-		 "%s: pentry %p has no sparse node with key%"PRIu64,
-		 __func__,
-		 pentry,
-		 cookie);
-	return;
-    }
-
-    /* get shared dirent */
-    dirent = avltree_container_of(dirent_node, cache_inode_dir_entry_t,
-				  node_c);
-
-    /* clear cookie offset avl */
-    avltree_remove(&dirent->node_c, &pentry->object.dir.cookies);
-
-    /* clear name avl */
-    avltree_remove(&dirent->node_n, &pentry->object.dir.dentries);
-
-    /* reclaim */
-    ReleaseToPool(dirent, &pclient->pool_dir_entry);
+    /* Fine-grained updates are possible, but the parent_iter must be replaced
+     * with a set of link records, and these must be reliable. */
+    cache_inode_release_dirents(pentry, pclient, CACHE_INODE_AVL_BOTH);
 
     /* invalidate pentry */
     pentry->object.dir.has_been_readdir = CACHE_INODE_NO;
@@ -1706,8 +1616,7 @@ void cache_inode_invalidate_related_dirent(
  * cache_inode_invalidate_related_dirents: invalidate directory entries
  * related through hard links.
  *
- * Removes directory entry associations.  Dirent is not reclaimed (but
- * may be by the caller).  Cache entry is locked.
+ * Removes directory entry associations.  Cache entry is locked.
  *
  * @param pentry [INOUT] entry to be managed
  * @param pclient [IN] related pclient
@@ -1724,7 +1633,9 @@ void cache_inode_invalidate_related_dirents(  cache_entry_t        * pentry,
   for(parent_iter = pentry->parent_list; parent_iter != NULL;
       parent_iter = parent_iter->next_parent)
     {
-      if(parent_iter->parent == NULL)
+      cache_entry_t *parent = parent_iter->parent;
+      
+      if(parent == NULL)
         {
           LogDebug(COMPONENT_CACHE_INODE,
                    "cache_inode_gc_invalidate_related_dirent: pentry %p "
@@ -1735,12 +1646,12 @@ void cache_inode_invalidate_related_dirents(  cache_entry_t        * pentry,
 
       /* If I reached this point, then parent_iter->parent is not null
        * and is a valid cache_inode pentry */
-      P_w(&parent_iter->parent->lock);
+      P_w(&parent->lock);
 
       /* Check for type of the parent */
-      if(parent_iter->parent->internal_md.type != DIRECTORY)
+      if(parent->internal_md.type != DIRECTORY)
         {
-          V_w(&parent_iter->parent->lock);
+          V_w(&parent->lock);
           /* Major parent incoherency: parent is not a directory */
           LogDebug(COMPONENT_CACHE_INODE,
                    "cache_inode_gc_invalidate_related_dirent: major "
@@ -1748,11 +1659,13 @@ void cache_inode_invalidate_related_dirents(  cache_entry_t        * pentry,
           return;
         }
 
-      /* Invalidate related */
-      cache_inode_invalidate_related_dirent(
-	  parent_iter->parent, parent_iter->cookie, pclient);
+      /* Fine-grained updates are possible, change to threaded dirents will
+       * enable this. */
 
-      V_w(&parent_iter->parent->lock);
+      /* Invalidate related. */
+      cache_inode_invalidate_related_dirent(parent, pclient);
+
+      V_w(&parent->lock);
     }
 }                               /* cache_inode_invalidate_related_dirent */
 
@@ -1786,7 +1699,8 @@ void cache_inode_release_symlink(cache_entry_t * pentry,
  * cache_inode_release_dirents: release cached dirents associated
  * with an entry.
  *
- * releases an allocated symlink component, if any
+ * releases dirents associated with pentry.  this is simple, but maybe
+ * should be abstracted.
  *
  * @param pentry [INOUT] entry to be released
  * @param pclient [IN] related pclient
@@ -1810,13 +1724,8 @@ void cache_inode_release_dirents( cache_entry_t           * pentry,
 
     switch( which )
     {
-       case CACHE_INODE_AVL_COOKIES:
-          /* omit O(N) operation */
-          avltree_init(&pentry->object.dir.cookies, ci_avl_dir_ck_cmp, 0 ); /* Last 0 is a flag */
-	  break;
-
        case CACHE_INODE_AVL_NAMES:
-	  tree = &pentry->object.dir.dentries;
+	  tree = &pentry->object.dir.avl;
 	  dirent_node = avltree_first(tree);
 
 	  while( dirent_node )
@@ -1824,7 +1733,7 @@ void cache_inode_release_dirents( cache_entry_t           * pentry,
 	     next_dirent_node = avltree_next(dirent_node);
              dirent = avltree_container_of( dirent_node,
                                             cache_inode_dir_entry_t,
-                                            node_n);
+                                            node_hk);
              avltree_remove(dirent_node, tree);
              ReleaseToPool(dirent, &pclient->pool_dir_entry);
 	     dirent_node = next_dirent_node;
@@ -1834,7 +1743,6 @@ void cache_inode_release_dirents( cache_entry_t           * pentry,
 	break;
 
       case CACHE_INODE_AVL_BOTH:
-	cache_inode_release_dirents(pentry, pclient, CACHE_INODE_AVL_COOKIES);
 	cache_inode_release_dirents(pentry, pclient, CACHE_INODE_AVL_NAMES);
 	/* tree == NULL */
 	break;
