@@ -173,8 +173,11 @@ cache_entry_t *nfs_FhandleToCache(u_long rq_vers,
 {
   cache_inode_fsal_data_t fsal_data;
   cache_inode_status_t cache_status;
+  cache_inode_policy_t policy;
   cache_entry_t *pentry = NULL;
   fsal_attrib_list_t attr;
+  exportlist_t *pexport;
+  short exportid;
 
   /* Default behaviour */
   *prc = NFS_REQ_OK;
@@ -212,9 +215,33 @@ cache_entry_t *nfs_FhandleToCache(u_long rq_vers,
   fsal_data.cookie = DIR_START;
 
   print_buff(COMPONENT_FILEHANDLE, (char *)&fsal_data.handle, sizeof(fsal_data.handle));
+  
+  if((pexport = nfs_Get_export_by_id(nfs_param.pexportlist, exportid)) == NULL)
+    {
+      /* invalid handle */
+      switch (rq_vers)
+        {
+        case NFS_V4:
+          *pstatus4 = NFS4ERR_STALE;
+          break;
+
+        case NFS_V3:
+          *pstatus3 = NFS3ERR_STALE;
+          break;
+
+        case NFS_V2:
+          *pstatus2 = NFSERR_STALE;
+          break;
+        }
+      *prc = NFS_REQ_DROP;
+
+      LogFullDebug(COMPONENT_NFSPROTO,
+                   "Invalid file handle passed to nfsFhandleToCache ");
+      return NULL;
+    }
 
   if((pentry = cache_inode_get(&fsal_data,
-                               CACHE_INODE_JOKER_POLICY,
+                               pexport->cache_inode_policy,
                                &attr, ht, pclient, pcontext, &cache_status)) == NULL)
     {
       switch (rq_vers)
@@ -301,7 +328,6 @@ void nfs_SetPreOpAttr(fsal_attrib_list_t * pfsal_attr, pre_op_attr * pattr)
   else
     {
       pattr->pre_op_attr_u.attributes.size = pfsal_attr->filesize;
-
       pattr->pre_op_attr_u.attributes.mtime.seconds = pfsal_attr->mtime.seconds;
       pattr->pre_op_attr_u.attributes.mtime.nseconds = pfsal_attr->mtime.nseconds;
 

@@ -124,6 +124,7 @@ cache_content_client_t recover_datacache_client;
 #define CONF_EXPORT_FSAL_UP_FILTERS    "FSAL_UP_Filters"
 #define CONF_EXPORT_FSAL_UP_TIMEOUT    "FSAL_UP_Timeout"
 #define CONF_EXPORT_FSAL_UP_TYPE       "FSAL_UP_Type"
+#define CONF_EXPORT_USE_COOKIE_VERIFIER "UseCookieVerifier"
 
 /** @todo : add encrypt handles option */
 
@@ -662,6 +663,7 @@ static int BuildExportEntry(config_item_t block, exportlist_t ** pp_export)
   p_entry->anonymous_uid = (uid_t) ANON_UID;
   p_entry->anonymous_gid = (gid_t) ANON_GID;
   p_entry->use_commit = TRUE;
+  p_entry->UseCookieVerifier = TRUE;
 
   /* Defaults for FSAL_UP. It is ok to leave the filter list NULL
    * even if we enable the FSAL_UP. */
@@ -2009,6 +2011,28 @@ static int BuildExportEntry(config_item_t block, exportlist_t ** pp_export)
           else
             fsalid_is_set = TRUE ;
         }
+      else if(!STRCMP(var_name, CONF_EXPORT_USE_COOKIE_VERIFIER))
+        {
+          switch (StrToBoolean(var_value))
+            {
+            case 1:
+              p_entry->UseCookieVerifier = TRUE;
+              break;
+
+            case 0:
+              p_entry->UseCookieVerifier = FALSE;
+              break;
+
+            default:           /* error */
+              {
+                LogCrit(COMPONENT_CONFIG,
+                        "NFS READ_EXPORT: ERROR: Invalid value for %s (%s): TRUE or FALSE expected.",
+                        var_name, var_value);
+                err_flag = TRUE;
+                continue;
+              }
+            }
+        }
       else
         {
           LogCrit(COMPONENT_CONFIG,
@@ -2162,7 +2186,7 @@ exportlist_t *BuildDefaultExport()
   strcpy(p_entry->pseudopath, "/");
   strcpy(p_entry->referral, "");
 
-  p_entry->UseCookieVerifier = FALSE;
+  p_entry->UseCookieVerifier = TRUE;
 
   /**
    * Grant root access to all clients
