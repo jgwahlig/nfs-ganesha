@@ -173,11 +173,10 @@ cache_entry_t *nfs_FhandleToCache(u_long rq_vers,
 {
   cache_inode_fsal_data_t fsal_data;
   cache_inode_status_t cache_status;
-  cache_inode_policy_t policy;
   cache_entry_t *pentry = NULL;
   fsal_attrib_list_t attr;
   exportlist_t *pexport;
-  short exportid;
+  unsigned short exportid = 0 ;
 
   /* Default behaviour */
   *prc = NFS_REQ_OK;
@@ -192,6 +191,7 @@ cache_entry_t *nfs_FhandleToCache(u_long rq_vers,
           *pstatus4 = NFS4ERR_BADHANDLE;
           return NULL;
         }
+      exportid = ((file_handle_v4_t*)(pfh4->nfs_fh4_val))->exportid ;
       break;
 
     case NFS_V3:
@@ -201,6 +201,8 @@ cache_entry_t *nfs_FhandleToCache(u_long rq_vers,
           *pstatus3 = NFS3ERR_BADHANDLE;
           return NULL;
         }
+      
+      exportid = ((file_handle_v3_t*)(pfh3->data.data_val))->exportid ;
       break;
 
     case NFS_V2:
@@ -210,12 +212,13 @@ cache_entry_t *nfs_FhandleToCache(u_long rq_vers,
           *pstatus2 = NFSERR_STALE;
           return NULL;
         }
+      exportid = ((file_handle_v2_t*)pfh2)->exportid ;
       break;
     }
   fsal_data.cookie = DIR_START;
 
   print_buff(COMPONENT_FILEHANDLE, (char *)&fsal_data.handle, sizeof(fsal_data.handle));
-  
+ 
   if((pexport = nfs_Get_export_by_id(nfs_param.pexportlist, exportid)) == NULL)
     {
       /* invalid handle */
