@@ -120,6 +120,7 @@ extern void cache_inode_lru_pkginit(void);
 extern void cache_inode_lru_pkgshutdown(void);
 
 extern size_t open_fd_count;
+extern pthread_mutex_t fd_count_lock;
 
 /* Return an integral id associated with the thread.  Currently we
    just return the index, since it is known to be integral and unique

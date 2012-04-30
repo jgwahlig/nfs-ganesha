@@ -176,6 +176,7 @@ static struct lru_q_ LRU_2[LRU_N_Q_LANES];
  */
 
 size_t open_fd_count = 0;
+pthread_mutex_t fd_count_lock;
 
 /**
  * The refcount mechanism distinguishes 3 key object states:
@@ -938,6 +939,7 @@ cache_inode_lru_pkginit(void)
      };
 
      open_fd_count = 0;
+     pthread_mutex_init(&fd_count_lock, NULL);
 
      /* Repurpose some GC policy */
      lru_state.flags = LRU_STATE_NONE;

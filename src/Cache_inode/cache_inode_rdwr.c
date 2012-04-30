@@ -49,6 +49,7 @@
 #include "HashData.h"
 #include "HashTable.h"
 #include "cache_inode.h"
+#include "cache_inode_lru.h"
 #include "stuff_alloc.h"
 #include "nfs_core.h"
 
@@ -267,6 +268,9 @@ cache_inode_rdwr(cache_entry_t *entry,
                     FSAL_close(&(entry->object.file.open_fd.fd));
                     entry->object.file.open_fd.openflags
                          = FSAL_O_CLOSED;
+                    pthread_mutex_lock(&fd_count_lock);
+                    --open_fd_count;
+                    pthread_mutex_unlock(&fd_count_lock);
                     *status = cache_inode_error_convert(fsal_status);
                }
 
