@@ -515,6 +515,10 @@ cache_inode_status_t cache_inode_readdir_populate(
                      return *pstatus;
                 }
             }
+          else
+            {
+              create_arg.newly_created_dir = FALSE;
+            }
 
           /* Try adding the entry, if it exists then this existing entry is
              returned */
