@@ -620,19 +620,19 @@ fsal_status_t GPFSFSAL_mknode(fsal_handle_t * parentdir_handle,     /* IN */
       ReturnStatus(status, INDEX_FSAL_mknode);
     }
 
-  if(FSAL_IS_ERROR(status = fsal_internal_handle2fd_at(fd,
-                                                       p_object_handle, &newfd,
-                                                       flags)))
-    {
-      close(fd);
-      ReturnStatus(status, INDEX_FSAL_mknode);
-    }
-
   /* the node has been created */
   /* chown the file to the current user/group */
 
   if(p_context->credential.user != geteuid())
     {
+      if(FSAL_IS_ERROR(status = fsal_internal_handle2fd_at(fd,
+                                                       p_object_handle, &newfd,
+                                                       flags)))
+        {
+          close(fd);
+          ReturnStatus(status, INDEX_FSAL_mknode);
+        }
+
       /* if the setgid_bit was set on the parent directory, do not change the group of the created file, because it's already the parentdir's group */
       rc = fchown(newfd, p_context->credential.user,
                   setgid_bit ? -1 : (int)p_context->credential.group);
@@ -644,10 +644,10 @@ fsal_status_t GPFSFSAL_mknode(fsal_handle_t * parentdir_handle,     /* IN */
           close(newfd);
           Return(posix2fsal_error(errsv), errsv, INDEX_FSAL_mknode);
         }
+      close(newfd);
     }
 
   close(fd);
-  close(newfd);
 
   /* Fills the attributes if needed */
   if(node_attributes)
