@@ -298,6 +298,14 @@ fsal_status_t GPFSFSAL_read(fsal_file_t * file_desc,        /* IN */
     Return(posix2fsal_error(errsv), errsv, INDEX_FSAL_read);
   else if(nb_read == 0)
     *p_end_of_file = 1;
+  if ( nb_read >  (ssize_t) i_size ) {
+          LogCrit(COMPONENT_FSAL,
+                       "Error in posix read operation (whence=%s, offset=%lld nb_read 0x%x i_size = 0x%x, buffer_size = 0x%x)",
+                       format_seek_whence(p_seek_descriptor->whence),
+                       (long long) p_seek_descriptor->offset, (uint_t)nb_read, (uint_t)i_size, (uint_t)buffer_size);
+
+          Return(CACHE_INODE_FSAL_ERROR, errsv, INDEX_FSAL_read);
+  }
 
   *p_read_amount = nb_read;
 
